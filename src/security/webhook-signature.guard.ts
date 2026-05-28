@@ -1,0 +1,123 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  Inject,
+  Injectable,
+  RawBodyRequest,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { Request } from 'express';
+import { ISecretProvider, SECRET_PROVIDER } from '../secrets/secret-provider.interface';
+import { WebhookVerifier } from './webhook-verifier.service';
+import { RapydWebhookVerifier } from './rapyd-webhook-verifier.service';
+import { WEBHOOK_PROVIDER_KEY } from './webhook-provider.decorator';
+import { BusinessLogger } from '@common/logging';
+
+@Injectable()
+export class WebhookSignatureGuard implements CanActivate {
+  private readonly blog = new BusinessLogger('WebhookSignatureGuard');
+
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly webhookVerifier: WebhookVerifier,
+    private readonly rapydVerifier: RapydWebhookVerifier,
+    @Inject(SECRET_PROVIDER) private readonly secretProvider: ISecretProvider,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const provider = this.reflector.get<string>(WEBHOOK_PROVIDER_KEY, context.getHandler());
+    const req = context.switchToHttp().getRequest<RawBodyRequest<Request>>();
+    if (!provider) {
+      this.logFailure(req, 'unknown', 'no_provider_metadata');
+      throw new UnauthorizedException();
+    }
+
+    const rawBody = req.rawBody;
+    if (!rawBody || rawBody.length === 0) {
+      this.logFailure(req, provider, 'missing_raw_body');
+      throw new UnauthorizedException();
+    }
+
+    try {
+      const verified =
+        provider === 'RAPYD'
+          ? await this.verifyRapyd(req, rawBody)
+          : await this.verifyGeneric(provider, req, rawBody);
+
+      if (!verified) {
+        this.logFailure(req, provider, 'signature_mismatch');
+        throw new UnauthorizedException();
+      }
+      return true;
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      this.logFailure(req, provider, 'verification_error');
+      throw new UnauthorizedException();
+    }
+  }
+
+  private logFailure(
+    req: RawBodyRequest<Request>,
+    provider: string,
+    reason: string,
+  ): void {
+    const eventId = (req?.body as { id?: string } | undefined)?.id;
+    this.blog.warn('verifySignature', {
+      detail: {
+        provider,
+        eventId,
+        reason,
+        ip: req?.ip,
+        outcome: 'signature_verification_failed',
+      },
+    });
+  }
+
+  private async verifyRapyd(req: RawBodyRequest<Request>, rawBody: Buffer): Promise<boolean> {
+    const salt = req.headers['rapyd-salt'];
+    const timestamp = req.headers['rapyd-timestamp'];
+    const signature = req.headers['rapyd-signature'];
+    if (!salt || !timestamp || !signature) return false;
+
+    const secret = await this.secretProvider.get('RAPYD_SECRET_KEY');
+    return this.rapydVerifier.verify(
+      req.method.toLowerCase(),
+      req.path,
+      Array.isArray(salt) ? salt[0] : salt,
+      Array.isArray(timestamp) ? timestamp[0] : timestamp,
+      rawBody.toString('utf8'),
+      Array.isArray(signature) ? signature[0] : signature,
+      secret,
+    );
+  }
+
+  private async verifyGeneric(
+    provider: string,
+    req: RawBodyRequest<Request>,
+    rawBody: Buffer,
+  ): Promise<boolean> {
+    const secretKeyMap: Record<string, string> = {
+      BRIDGE: 'BRIDGE_WEBHOOK_SECRET',
+      MESH: 'MESH_WEBHOOK_SECRET',
+      // Placeholder for BoG — real algorithm TBD when CU-08 (API docs) resolves.
+      BOG: 'BOG_WEBHOOK_SECRET',
+    };
+    const headerMap: Record<string, string> = {
+      BRIDGE: 'bridge-signature',
+      MESH: 'mesh-signature',
+      BOG: 'bog-signature',
+    };
+
+    const secretKey = secretKeyMap[provider];
+    const headerName = headerMap[provider];
+    if (!secretKey || !headerName) return false;
+
+    const rawSig = req.headers[headerName];
+    if (!rawSig) return false;
+    const signature = Array.isArray(rawSig) ? rawSig[0] : rawSig;
+
+    const secret = await this.secretProvider.get(secretKey);
+    return this.webhookVerifier.verify(provider, rawBody, signature, secret);
+  }
+}

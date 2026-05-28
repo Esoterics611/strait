@@ -1,0 +1,9 @@
+{
+  "name": "@strait/contract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Single source of truth for the Strait UI<->API wire contract. Type-only (no runtime), consumed via TS path alias by both src/ (api) and client/src/ (web).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false
+}

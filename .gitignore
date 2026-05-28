@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+*.local
+*.log
+.DS_Store
+.incremental/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# OS / tool temp files
+.msys*
+*.sh
+.claude/
