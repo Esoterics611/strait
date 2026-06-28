@@ -2,10 +2,10 @@
 
 ## 0. Git Workflow (READ FIRST — binding)
 
-The real repo is **`C:\code\strait`**. Every session MUST:
-1. Work on `master` directly. Do not create per-session branches; the harness `claude/*` worktree branch is disposable.
-2. End the session with the work committed on `master` (one coherent commit, `Co-Authored-By` trailer). Never leave a session with uncommitted deliverables.
-3. To ship: push a single well-named feature branch from `master` and open a PR (`gh pr create --base master`).
+Remote: **`https://github.com/Esoterics611/strait`** (private). Every session MUST:
+1. Work on `main` directly. Do not create per-session branches; the harness `claude/*` worktree branch is disposable.
+2. End the session with the work committed on `main` (one coherent commit, `Co-Authored-By` trailer). Never leave a session with uncommitted deliverables.
+3. To ship: push a single well-named feature branch from `main` and open a PR (`gh pr create --base main`).
 4. Branches are disposable; commits/tags are forever. Before deleting any branch with unique commits, `git tag archive/<name> <branch>` first.
 5. `.claude/` is git-ignored. Never `git add` it.
 
@@ -108,8 +108,6 @@ docker-compose.yml         PostgreSQL 16 dev container
 ```
 
 ## 9. Architecture binding rules
-
-Same posture as upstream §10h (carried over):
 
 - **No microservices.** Append-only tables + Postgres `SERIALIZABLE` only hold against one DB in one service.
 - **Modular monolith, not polyrepo.** One repo, one DB, one ordered migration history.
