@@ -1,12 +1,8 @@
 import {
-  BadRequestException,
-  Body,
   Controller,
   Get,
-  HttpException,
   NotFoundException,
   Param,
-  Post,
   Sse,
   UseGuards,
 } from '@nestjs/common';
@@ -16,16 +12,9 @@ import { DataSource } from 'typeorm';
 import { fromEvent, merge, Observable, Subject, timer } from 'rxjs';
 import { filter, map, takeUntil } from 'rxjs/operators';
 import { SessionStubGuard } from './session-stub.guard';
-import { OnRampOrchestrator } from '../onramp/onramp.orchestrator';
 import { TxState } from '@common/enums';
 import { IDomainEvent } from '@common/interfaces';
 import { PAYMENT_EVENTS } from '../events/domain-event-emitter.service';
-
-interface InitiateBody {
-  memberId: string;
-  path: 'MESH' | 'ONRAMP' | 'SELF';
-  amountUsdcUnits: string;
-}
 
 interface TxSnapshot {
   txId: string;
@@ -33,42 +22,17 @@ interface TxSnapshot {
   amountUsdcUnits: string;
   sourceType: string;
   createdAt: string;
-  bridgeTransferId: string | null;
+  dispatchTxHash: string | null;
   settledAt: string | null;
-  railUsed: string | null;
-  achEstimatedDate: string | null;
+  payoutMethodUsed: string | null;
 }
 
 @Controller('api/transactions')
 export class TransactionsController {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
-    private readonly onramp: OnRampOrchestrator,
     private readonly emitter: EventEmitter2,
   ) {}
-
-  // Initiates a tx. For ONRAMP, returns the virtual-account details (the actual
-  // tx is webhook-initiated when Rapyd notifies us of the ILS payment). For MESH
-  // and SELF, returns a 501 in this PoC build (Path A deferred; Path C built
-  // in Session 7).
-  @Post()
-  @UseGuards(SessionStubGuard)
-  async initiate(@Body() body: InitiateBody): Promise<{ kind: string; data: unknown }> {
-    if (!body.memberId || !body.path) {
-      throw new BadRequestException('memberId and path are required');
-    }
-    if (body.path === 'ONRAMP') {
-      const details = await this.onramp.createVirtualAccount(body.memberId);
-      return { kind: 'virtual_account', data: details };
-    }
-    if (body.path === 'MESH') {
-      throw new HttpException(
-        'Path A (Mesh) is not yet implemented in this build — coming soon.',
-        501,
-      );
-    }
-    throw new HttpException('Path C is not enabled in this environment.', 503);
-  }
 
   @Get(':txId')
   @UseGuards(SessionStubGuard)
@@ -76,15 +40,12 @@ export class TransactionsController {
     return this.loadSnapshot(txId);
   }
 
-  // SSE — no auth guard. The txId is unguessable (UUID v4) so this is acceptable
-  // for the PoC. Browsers don't send arbitrary Authorization headers on EventSource
-  // by default. Production should use a short-lived signed token in the query string.
   @Sse(':txId/status')
   status(@Param('txId') txId: string): Observable<MessageEvent> {
     const done = new Subject<void>();
     const eventNames = [
       PAYMENT_EVENTS.USDC_LOCKED,
-      PAYMENT_EVENTS.BRIDGE_DISPATCHED,
+      PAYMENT_EVENTS.DISPATCHED,
       PAYMENT_EVENTS.SETTLED,
       PAYMENT_EVENTS.FAILED,
       PAYMENT_EVENTS.DELAYED,
@@ -92,13 +53,9 @@ export class TransactionsController {
       PAYMENT_EVENTS.DISPATCH_DEFERRED,
     ];
 
-    // Snapshot first, then live events, then a 15s keep-alive ping.
     const snapshot$ = new Observable<TxSnapshot>((sub) => {
       this.loadSnapshot(txId)
-        .then((s) => {
-          sub.next(s);
-          sub.complete();
-        })
+        .then((s) => { sub.next(s); sub.complete(); })
         .catch((err) => sub.error(err));
     }).pipe(map((s) => this.frame('snapshot', s)));
 
@@ -129,29 +86,29 @@ export class TransactionsController {
          u.source_type,
          u.created_at,
          (
-           SELECT t.metadata->>'bridge_transfer_id'
+           SELECT t.metadata->>'dispatch_tx_hash'
              FROM tx_state_transitions t
             WHERE t.tx_id = u.tx_id
-              AND t.to_state = 'BRIDGE_DISPATCHED'
+              AND t.to_state = 'DISPATCHED'
             ORDER BY t.occurred_at DESC
             LIMIT 1
-         ) AS bridge_transfer_id,
+         ) AS dispatch_tx_hash,
          (
-           SELECT t.metadata->>'settled_at'
+           SELECT t.occurred_at::text
              FROM tx_state_transitions t
             WHERE t.tx_id = u.tx_id
-              AND t.to_state = 'SETTLED_USD'
+              AND t.to_state = 'SETTLED'
             ORDER BY t.occurred_at DESC
             LIMIT 1
          ) AS settled_at,
          (
-           SELECT t.metadata->>'rail_used'
+           SELECT t.metadata->>'payout_method_used'
              FROM tx_state_transitions t
             WHERE t.tx_id = u.tx_id
-              AND t.to_state = 'SETTLED_USD'
+              AND t.to_state = 'SETTLED'
             ORDER BY t.occurred_at DESC
             LIMIT 1
-         ) AS rail_used
+         ) AS payout_method_used
        FROM usdc_transactions u
        LEFT JOIN v_tx_current_state v ON v.tx_id = u.tx_id
        WHERE u.tx_id = $1`,
@@ -165,10 +122,9 @@ export class TransactionsController {
       amountUsdcUnits: r.amount_usdc_wei,
       sourceType: r.source_type,
       createdAt: r.created_at,
-      bridgeTransferId: r.bridge_transfer_id,
+      dispatchTxHash: r.dispatch_tx_hash,
       settledAt: r.settled_at,
-      railUsed: r.rail_used,
-      achEstimatedDate: null,
+      payoutMethodUsed: r.payout_method_used,
     };
   }
 }
@@ -179,7 +135,7 @@ interface RawTxRow {
   amount_usdc_wei: string;
   source_type: string;
   created_at: string;
-  bridge_transfer_id: string | null;
+  dispatch_tx_hash: string | null;
   settled_at: string | null;
-  rail_used: string | null;
+  payout_method_used: string | null;
 }

@@ -1,11 +1,8 @@
-// USDC has 6 decimal places. The on-the-wire representation from Mesh / Rapyd /
-// any external provider is a decimal string (e.g. "10.500000"). Internally we
+// USDC has 6 decimal places. The on-the-wire representation from Mesh or any
+// external provider is a decimal string (e.g. "10.500000"). Internally we
 // store 6-decimal units as bigint (10.5 USDC === 10_500_000n).
 //
-// This util is the single source of truth for that conversion. Used by Mesh
-// (Path A) and reused by any future adapter that needs the same parse — the
-// Path B Rapyd adapter has an inline copy preserved for backwards compatibility
-// and to avoid touching that module in this session.
+// This util is the single source of truth for that conversion.
 
 const USDC_UNIT_SCALE = 1_000_000n;
 

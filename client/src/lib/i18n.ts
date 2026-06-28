@@ -13,13 +13,13 @@ import type { Money } from './contract';
 export type Lang = 'en' | 'he';
 export type Dir = 'ltr' | 'rtl';
 
-const STORAGE_KEY = 'lb.lang';
+const STORAGE_KEY = 'strait.lang';
 
 // English is the source of truth for the key set; `he` must match it exactly
 // (enforced by the Record<MsgKey, string> type below).
 const en = {
   // shell / nav
-  'app.name': 'Lira-Bridge',
+  'app.name': 'Strait',
   'nav.home': 'Home',
   'nav.send': 'Send',
   'nav.activity': 'Activity',
@@ -40,13 +40,13 @@ const en = {
   'common.reference': 'Reference {id}',
 
   // landing
-  'landing.headline': 'Send money to the US — they get every dollar you’d expect.',
+  'landing.headline': "Send money to the US — they get every dollar you'd expect.",
   'landing.cta': 'Send money',
   'landing.signin': 'Sign in',
   'landing.trust.regulated': 'Regulated remitter',
   'landing.trust.fee': 'Transparent fee',
   'landing.trust.tracking': 'Live tracking',
-  'landing.offline': 'You’re offline — we’ll reconnect.',
+  'landing.offline': "You're offline — we'll reconnect.",
 
   // auth
   'auth.title': 'Sign in or create an account',
@@ -62,7 +62,7 @@ const en = {
   'auth.verifying': 'Verifying…',
   'auth.resendIn': 'Resend in {sec}',
   'auth.resend': 'Resend code',
-  'auth.err.badCode': 'That code didn’t match. {left} tries left.',
+  'auth.err.badCode': "That code didn't match. {left} tries left.",
   'auth.err.expired': 'That code expired. Request a new one.',
   'auth.err.locked': 'Too many attempts. Try again in {sec}.',
   'auth.devHint': 'Dev mode: the code is {code}',
@@ -77,9 +77,9 @@ const en = {
   'profile.address.street': 'Street',
   'profile.address.city': 'City',
   'profile.address.postal': 'Postal code',
-  'profile.kyc.disclosureTitle': 'Why we’ll ask for ID later',
+  'profile.kyc.disclosureTitle': "Why we'll ask for ID later",
   'profile.kyc.disclosure':
-    'We’ll ask for ID later, only if a transfer needs it. You can start now.',
+    "We'll ask for ID later, only if a transfer needs it. You can start now.",
   'profile.saving': 'Saving…',
   'profile.language': 'Language',
   'profile.kycStatus': 'Verification status',
@@ -97,42 +97,36 @@ const en = {
   'home.noTransfers': 'No transfers yet. Sending takes about a minute.',
   'home.noRecipients': 'Add your first recipient',
   'home.kycNudge': 'A verification step is coming up soon. Tap to learn why.',
-  'home.activityFailed': 'Couldn’t load activity.',
+  'home.activityFailed': "Couldn't load activity.",
 
   // recipients
   'rcpt.title': 'Recipients',
   'rcpt.add': 'Add recipient',
   'rcpt.addFirst': 'Add your first recipient',
   'rcpt.empty': 'No recipients yet.',
-  'rcpt.displayName': 'Recipient’s name',
+  'rcpt.displayName': "Recipient's name",
   'rcpt.relationship': 'Relationship (optional)',
   'rcpt.payoutMethod': 'How they receive it',
-  'rcpt.bank.account': 'Account number',
-  'rcpt.bank.routing': 'Routing number',
-  'rcpt.bank.type': 'Account type',
-  'rcpt.bank.checking': 'Checking',
-  'rcpt.bank.savings': 'Savings',
+  'rcpt.wallet.address': 'Wallet address',
+  'rcpt.wallet.chainId': 'Chain ID',
+  'rcpt.custodial.provider': 'Provider key',
+  'rcpt.custodial.accountId': 'External account ID',
   'rcpt.trust':
-    'Bank details are encrypted and tokenized — we never store your recipient’s full account number.',
+    'Recipient details are encrypted — we never store credentials in plaintext.',
   'rcpt.submitting': 'Setting up…',
-  'rcpt.registering': 'Setting up {name} with our payout partner — usually under a minute. You can keep going.',
+  'rcpt.registering': 'Setting up {name} — usually under a minute. You can keep going.',
   'rcpt.ready': '{name} is ready',
-  'rcpt.failed': 'We couldn’t set up {name}.',
+  'rcpt.failed': "We couldn't set up {name}.",
   'rcpt.duplicate': 'You already have {name} with this account.',
-  'rcpt.editBankWarn':
-    'This re-verifies the recipient and pauses transfers to them until ready.',
   'rcpt.maskedTo': 'to ••••{last4}',
-  'rcpt.err.routing': 'Enter a valid 9-digit routing number.',
-  'rcpt.err.account': 'Enter the account number.',
-  'rcpt.err.name': 'Enter the recipient’s name.',
+  'rcpt.err.wallet': 'Enter the wallet address.',
+  'rcpt.err.custodial': 'Enter the external account ID.',
+  'rcpt.err.name': "Enter the recipient's name.",
 
   // pay methods
-  'payout.BANK_RTP': 'Instant',
-  'payout.BANK_FEDNOW': 'Instant',
-  'payout.BANK_ACH': 'Standard',
+  'payout.WALLET_CHAIN': 'On-chain',
+  'payout.CUSTODIAL': 'Custodial',
   'payin.MESH': 'Crypto wallet / exchange',
-  'payin.ONRAMP': 'Bank transfer (shekels)',
-  'payin.IL_BANK': 'Israeli bank wire',
 
   // wizard
   'wiz.step': 'Step {n} of 5',
@@ -145,17 +139,16 @@ const en = {
   'wiz.recipient.addNew': 'Add new recipient',
   'wiz.recipient.search': 'Search recipients',
   'wiz.recipient.settingUp':
-    'Setting up — you can continue, we’ll be ready before money moves.',
+    "Setting up — you can continue, we'll be ready before money moves.",
   'wiz.recipient.fix': 'Fix recipient',
   'wiz.amount.label': 'You send',
   'wiz.amount.belowFloor': 'Minimum send is about {amt} ($1.00 to deliver).',
-  'wiz.amount.quoteErr': 'Couldn’t get a rate — retry',
+  'wiz.amount.quoteErr': "Couldn't get a rate — retry",
   'wiz.payin.title': 'How will you pay?',
   'wiz.payout.title': 'How should they receive it?',
-  'wiz.payout.instant': 'Arrives in minutes.',
-  'wiz.payout.standard': '1–3 business days, lower fee.',
-  'wiz.payout.recommended': 'Recommended',
-  'wiz.payout.achOnly': 'This recipient’s bank supports standard only.',
+  'wiz.payout.onchain': 'Sent directly on-chain.',
+  'wiz.payout.custodial': 'Delivered via custodial provider.',
+  'wiz.payout.notConfigured': 'Recipient not configured for this method.',
   'wiz.review.title': 'Review & send',
   'wiz.review.confirm': 'Confirm & send {total}',
   'wiz.review.confirming': 'Sending…',
@@ -167,7 +160,7 @@ const en = {
   'wiz.review.expired': 'Rate updated — review the new total.',
   'wiz.review.reaccept': 'Use new rate',
   'wiz.review.recipientNotReady':
-    'We’ll set up {name} before money moves — continue?',
+    "We'll set up {name} before money moves — continue?",
 
   // summary rail
   'rail.youSend': 'You send',
@@ -181,29 +174,15 @@ const en = {
   'fund.title': 'Complete your payment',
   'fund.track': 'Track this transfer',
   'fund.mesh.title': 'Connect your wallet or exchange',
-  'fund.mesh.body': 'We’ll take it from here once your transfer confirms on-chain.',
+  'fund.mesh.body': "We'll take it from here once your transfer confirms on-chain.",
   'fund.mesh.connect': 'Connect',
-  'fund.onramp.title': 'Send a bank transfer',
-  'fund.onramp.next': 'What happens next',
-  'fund.onramp.step1': 'Transfer the exact amount to the account below.',
-  'fund.onramp.step2': 'Include the reference so we can match it.',
-  'fund.onramp.step3': 'No manual confirmation — we react to the wire automatically.',
-  'fund.onramp.bank': 'Bank',
-  'fund.onramp.account': 'Account number',
-  'fund.onramp.reference': 'Reference',
-  'fund.ilbank.title': 'Send an Israeli bank wire',
-  'fund.ilbank.beneficiary': 'Beneficiary',
-  'fund.ilbank.iban': 'IBAN',
-  'fund.ilbank.reference': 'Reference',
-  'fund.ilbank.window': 'Please send within 72 hours.',
-
   // tracking
   'track.title': 'Tracking',
   'track.now': 'Now: {stage}',
   'track.eta': 'Arrives by {date}',
   'track.settlement': 'Settlement detail',
-  'track.bridgeId': 'Bridge transfer ID',
-  'track.rail': 'Rail',
+  'track.dispatchTxHash': 'Dispatch tx hash',
+  'track.payoutMethod': 'Payout method',
   'track.settledAt': 'Settled at',
   'track.saveReceipt': 'Save receipt',
   'track.lastUpdate': 'Working on it — last update {rel}',
@@ -211,14 +190,12 @@ const en = {
   'track.delivered': 'Delivered {amt} to {name}',
   'track.sendAgain': 'Send again',
   'track.fail.preDispatch':
-    'This transfer didn’t go through. Your {total} was not taken.',
+    "This transfer didn't go through. Your {total} was not taken.",
   'track.fail.bridge':
-    'We couldn’t deliver to {name}. You’ll get {total} back by {date}. Nothing for you to do.',
+    "We couldn't dispatch to {name}. You'll get {total} back by {date}. Nothing for you to do.",
   'track.reversing':
     'Returning your {total} — by {date}. Nothing to do.',
   'track.refunded': 'Your {total} has been returned.',
-  'track.ach': 'Arrives by {date} (slower bank rail).',
-
   // activity
   'activity.title': 'Activity',
   'activity.search': 'Search by recipient',
@@ -239,7 +216,7 @@ export type MsgKey = keyof typeof en;
 export type Vars = Record<string, string | number>;
 
 const he: Record<MsgKey, string> = {
-  'app.name': 'לִירָה-בְּרִידְג׳',
+  'app.name': 'Strait',
   'nav.home': 'בית',
   'nav.send': 'שליחה',
   'nav.activity': 'פעילות',
@@ -321,30 +298,24 @@ const he: Record<MsgKey, string> = {
   'rcpt.displayName': 'שם הנמען',
   'rcpt.relationship': 'קרבה (לא חובה)',
   'rcpt.payoutMethod': 'איך הם מקבלים',
-  'rcpt.bank.account': 'מספר חשבון',
-  'rcpt.bank.routing': 'מספר ניתוב',
-  'rcpt.bank.type': 'סוג חשבון',
-  'rcpt.bank.checking': 'עו״ש',
-  'rcpt.bank.savings': 'חיסכון',
-  'rcpt.trust':
-    'פרטי הבנק מוצפנים ומאוסקנים — אנחנו לא שומרים את מספר החשבון המלא של הנמען.',
+  'rcpt.wallet.address': 'כתובת ארנק',
+  'rcpt.wallet.chainId': 'מזהה רשת',
+  'rcpt.custodial.provider': 'מפתח ספק',
+  'rcpt.custodial.accountId': 'מזהה חשבון חיצוני',
+  'rcpt.trust': 'פרטי הנמען מוצפנים — אנחנו לא שומרים פרטים בטקסט רגיל.',
   'rcpt.submitting': 'מגדיר…',
-  'rcpt.registering': 'מגדירים את {name} מול שותף התשלומים — בדרך כלל פחות מדקה. אפשר להמשיך.',
+  'rcpt.registering': 'מגדירים את {name} — בדרך כלל פחות מדקה. אפשר להמשיך.',
   'rcpt.ready': '{name} מוכן',
   'rcpt.failed': 'לא הצלחנו להגדיר את {name}.',
   'rcpt.duplicate': 'כבר יש לכם את {name} עם החשבון הזה.',
-  'rcpt.editBankWarn': 'פעולה זו מאמתת מחדש את הנמען ומשהה העברות אליו עד שיהיה מוכן.',
   'rcpt.maskedTo': 'אל ••••{last4}',
-  'rcpt.err.routing': 'הזינו מספר ניתוב תקין בן 9 ספרות.',
-  'rcpt.err.account': 'הזינו את מספר החשבון.',
+  'rcpt.err.wallet': 'הזינו את כתובת הארנק.',
+  'rcpt.err.custodial': 'הזינו את מזהה החשבון החיצוני.',
   'rcpt.err.name': 'הזינו את שם הנמען.',
 
-  'payout.BANK_RTP': 'מיידי',
-  'payout.BANK_FEDNOW': 'מיידי',
-  'payout.BANK_ACH': 'רגיל',
+  'payout.WALLET_CHAIN': 'על הרשת',
+  'payout.CUSTODIAL': 'קסטודיאלי',
   'payin.MESH': 'ארנק קריפטו / בורסה',
-  'payin.ONRAMP': 'העברה בנקאית (שקלים)',
-  'payin.IL_BANK': 'העברה מבנק ישראלי',
 
   'wiz.step': 'שלב {n} מתוך 5',
   'wiz.step.recipient': 'נמען',
@@ -362,10 +333,9 @@ const he: Record<MsgKey, string> = {
   'wiz.amount.quoteErr': 'לא ניתן לקבל שער — נסו שוב',
   'wiz.payin.title': 'איך תשלמו?',
   'wiz.payout.title': 'איך הם יקבלו?',
-  'wiz.payout.instant': 'מגיע תוך דקות.',
-  'wiz.payout.standard': '1–3 ימי עסקים, עמלה נמוכה יותר.',
-  'wiz.payout.recommended': 'מומלץ',
-  'wiz.payout.achOnly': 'הבנק של הנמען תומך רק במסלול הרגיל.',
+  'wiz.payout.onchain': 'נשלח ישירות על הרשת.',
+  'wiz.payout.custodial': 'נמסר דרך ספק קסטודיאלי.',
+  'wiz.payout.notConfigured': 'הנמען אינו מוגדר לשיטה זו.',
   'wiz.review.title': 'סקירה ושליחה',
   'wiz.review.confirm': 'אישור ושליחת {total}',
   'wiz.review.confirming': 'שולח…',
@@ -390,26 +360,12 @@ const he: Record<MsgKey, string> = {
   'fund.mesh.title': 'חברו ארנק או בורסה',
   'fund.mesh.body': 'נמשיך מכאן ברגע שההעברה תאושר ברשת.',
   'fund.mesh.connect': 'חיבור',
-  'fund.onramp.title': 'שלחו העברה בנקאית',
-  'fund.onramp.next': 'מה קורה עכשיו',
-  'fund.onramp.step1': 'העבירו את הסכום המדויק לחשבון שלהלן.',
-  'fund.onramp.step2': 'כללו את האסמכתא כדי שנוכל להתאים.',
-  'fund.onramp.step3': 'אין אישור ידני — אנחנו מגיבים להעברה אוטומטית.',
-  'fund.onramp.bank': 'בנק',
-  'fund.onramp.account': 'מספר חשבון',
-  'fund.onramp.reference': 'אסמכתא',
-  'fund.ilbank.title': 'שלחו העברה מבנק ישראלי',
-  'fund.ilbank.beneficiary': 'מוטב',
-  'fund.ilbank.iban': 'IBAN',
-  'fund.ilbank.reference': 'אסמכתא',
-  'fund.ilbank.window': 'נא לשלוח תוך 72 שעות.',
-
   'track.title': 'מעקב',
   'track.now': 'עכשיו: {stage}',
   'track.eta': 'מגיע עד {date}',
   'track.settlement': 'פרטי סליקה',
-  'track.bridgeId': 'מזהה העברת Bridge',
-  'track.rail': 'מסלול',
+  'track.dispatchTxHash': 'גיבוב טרנזקציית שליחה',
+  'track.payoutMethod': 'שיטת תשלום',
   'track.settledAt': 'נסלק ב',
   'track.saveReceipt': 'שמירת קבלה',
   'track.lastUpdate': 'עובדים על זה — עדכון אחרון {rel}',
@@ -418,11 +374,9 @@ const he: Record<MsgKey, string> = {
   'track.sendAgain': 'שליחה חוזרת',
   'track.fail.preDispatch': 'ההעברה לא בוצעה. {total} לא חויבו.',
   'track.fail.bridge':
-    'לא הצלחנו להעביר אל {name}. {total} יוחזרו עד {date}. אין צורך לעשות דבר.',
+    'לא הצלחנו לשגר אל {name}. {total} יוחזרו עד {date}. אין צורך לעשות דבר.',
   'track.reversing': 'מחזירים את {total} — עד {date}. אין צורך לעשות דבר.',
   'track.refunded': '{total} הוחזרו לכם.',
-  'track.ach': 'מגיע עד {date} (מסלול בנקאי איטי יותר).',
-
   'activity.title': 'פעילות',
   'activity.search': 'חיפוש לפי נמען',
   'activity.empty': 'אין העברות עדיין.',
@@ -519,7 +473,7 @@ export function useT(): I18nCtx {
 // ---- money / date formatting (numerals stay LTR via bidi isolation) ----
 
 export function moneyToNumber(m: Money): number {
-  const minorPerUnit = m.currency === 'USD' ? 1_000_000 : 100; // USDC 6dp; ILS agorot
+  const minorPerUnit = 1_000_000; // USDC 6dp
   return Number(BigInt(m.minor)) / minorPerUnit;
 }
 

@@ -28,11 +28,11 @@ export class DashboardController {
         `SELECT COALESCE(SUM(amount_usdc_wei::numeric),0) AS amount
            FROM usdc_transactions u
            JOIN tx_state_transitions t ON t.tx_id = u.tx_id
-          WHERE t.to_state = 'BRIDGE_DISPATCHED' AND t.occurred_at::date = CURRENT_DATE`,
+          WHERE t.to_state = 'DISPATCHED' AND t.occurred_at::date = CURRENT_DATE`,
       ),
       this.dataSource.query(
         `SELECT
-            (COUNT(*) FILTER (WHERE state = 'SETTLED_USD'))::float
+            (COUNT(*) FILTER (WHERE state = 'SETTLED'))::float
             / NULLIF(COUNT(*),0) AS rate
            FROM usdc_transactions WHERE created_at > NOW() - INTERVAL '7 days'`,
       ),
@@ -43,7 +43,7 @@ export class DashboardController {
          FROM (
            SELECT u.tx_id,
                   MIN(t.occurred_at) FILTER (WHERE t.to_state = 'USDC_LOCKED')   AS locked_at,
-                  MIN(t.occurred_at) FILTER (WHERE t.to_state = 'SETTLED_USD')  AS settled_at
+                  MIN(t.occurred_at) FILTER (WHERE t.to_state = 'SETTLED')  AS settled_at
              FROM usdc_transactions u
              JOIN tx_state_transitions t ON t.tx_id = u.tx_id
             WHERE u.created_at > NOW() - INTERVAL '7 days'
@@ -54,10 +54,10 @@ export class DashboardController {
       this.dataSource.query(
         `SELECT COUNT(*) AS n
            FROM tx_state_transitions
-          WHERE to_state = 'BRIDGE_DISPATCHED' AND occurred_at < NOW() - INTERVAL '30 minutes'
+          WHERE to_state = 'DISPATCHED' AND occurred_at < NOW() - INTERVAL '30 minutes'
             AND tx_id NOT IN (
               SELECT tx_id FROM tx_state_transitions
-               WHERE to_state IN ('SETTLED_USD','FAILED_BRIDGE')
+               WHERE to_state IN ('SETTLED','FAILED_DISPATCH')
             )`,
       ),
       this.dataSource.query(`SELECT COUNT(*) AS n FROM failed_webhooks`),

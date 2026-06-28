@@ -50,10 +50,9 @@ export function useTxStatus(
               state: t.state,
               stage: stageFor(t.state),
               etaText: prev?.etaText ?? null,
-              achEstimatedDate: prev?.achEstimatedDate ?? null,
-              bridgeTransferId: prev?.bridgeTransferId ?? null,
+              dispatchTxHash: prev?.dispatchTxHash ?? null,
               settledAt: prev?.settledAt ?? null,
-              railUsed: prev?.railUsed ?? null,
+              payoutMethodUsed: prev?.payoutMethodUsed ?? null,
               failureReason: prev?.failureReason ?? null,
               refundExpectedBy: prev?.refundExpectedBy ?? null,
             }));

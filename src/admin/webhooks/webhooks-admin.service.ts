@@ -14,7 +14,7 @@ import { ISecretProvider, SECRET_PROVIDER } from '../../secrets/secret-provider.
 import { AppConfig } from '../../config/app-config.interface';
 import { AuditLogRepository } from '../audit/audit-log.repository';
 
-export type WebhookProvider = 'BRIDGE' | 'MESH' | 'RAPYD' | 'BOG';
+export type WebhookProvider = 'MESH' | 'CUSTODIAL';
 
 export interface ProcessedWebhookRow {
   id: string;
@@ -203,39 +203,16 @@ export class WebhooksAdminService {
     let path: string;
 
     switch (provider) {
-      case 'BRIDGE': {
-        const secret = await this.secrets.get('BRIDGE_WEBHOOK_SECRET');
-        headers['bridge-signature'] = createHmac('sha256', secret).update(rawBody).digest('hex');
-        path = '/webhooks/bridge';
-        break;
-      }
       case 'MESH': {
         const secret = await this.secrets.get('MESH_WEBHOOK_SECRET');
         headers['mesh-signature'] = createHmac('sha256', secret).update(rawBody).digest('hex');
         path = '/webhooks/mesh';
         break;
       }
-      case 'RAPYD': {
-        // Rapyd signing depends on method+path+salt+ts+body; we re-sign with a fresh salt/ts.
-        const secret = await this.secrets.get('RAPYD_SECRET_KEY');
-        const accessKey = await this.secrets.get('RAPYD_ACCESS_KEY');
-        const salt = Math.random().toString(36).slice(2, 18);
-        const ts = String(Math.floor(Date.now() / 1000));
-        const method = 'post';
-        path = '/webhooks/rapyd';
-        const toSign = `${method}${path}${salt}${ts}${accessKey}${secret}${rawBody.toString('utf8')}`;
-        const hex = createHmac('sha256', secret).update(toSign).digest('hex');
-        const sig = Buffer.from(hex).toString('base64');
-        headers['rapyd-salt'] = salt;
-        headers['rapyd-timestamp'] = ts;
-        headers['rapyd-signature'] = sig;
-        headers['access_key'] = accessKey;
-        break;
-      }
-      case 'BOG': {
-        const secret = await this.secrets.get('BOG_WEBHOOK_SECRET');
-        headers['bog-signature'] = createHmac('sha256', secret).update(rawBody).digest('hex');
-        path = '/webhooks/bog';
+      case 'CUSTODIAL': {
+        const secret = await this.secrets.get('CUSTODIAL_WEBHOOK_SECRET');
+        headers['custodial-signature'] = createHmac('sha256', secret).update(rawBody).digest('hex');
+        path = '/webhooks/custodial';
         break;
       }
     }

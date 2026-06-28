@@ -1,5 +1,5 @@
 import type { Quote } from '../../lib/contract';
-import { fmtRate, useT } from '../../lib/i18n';
+import { useT } from '../../lib/i18n';
 import { MoneyText, Skeleton } from './ui';
 
 // The always-visible send/receive/fee/rate/ETA panel (Wise pattern).
@@ -13,7 +13,7 @@ export function SummaryRail({
   pending?: boolean;
   error?: string | null;
 }): JSX.Element {
-  const { t, lang } = useT();
+  const { t } = useT();
 
   if (error) {
     return (
@@ -50,9 +50,6 @@ export function SummaryRail({
       </Row>
       <Row label={t('rail.fee')}>
         {quote ? <MoneyText money={quote.fee} /> : '—'}
-      </Row>
-      <Row label={t('rail.rate')}>
-        {quote ? t('rail.rateValue', { usd: fmtRate(quote.fxRate, lang) }) : '—'}
       </Row>
       <div className="my-1 h-px bg-slate-100" />
       <Row label={t('rail.theyGet')}>

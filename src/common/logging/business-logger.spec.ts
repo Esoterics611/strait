@@ -30,7 +30,7 @@ describe('BusinessLogger', () => {
   });
 
   it('emits the fixed envelope as JSON with the required fields', () => {
-    const blog = new BusinessLogger('BridgeService');
+    const blog = new BusinessLogger('DispatchService');
     blog.info('dispatchTransfer', {
       txId: 'tx-1',
       memberId: 'm-1',
@@ -42,7 +42,7 @@ describe('BusinessLogger', () => {
     expect(sink[0].level).toBe('log');
     const env = JSON.parse(sink[0].line);
     expect(env.level).toBe('LOG');
-    expect(env.module).toBe('BridgeService');
+    expect(env.module).toBe('DispatchService');
     expect(env.operation).toBe('dispatchTransfer');
     expect(env.txId).toBe('tx-1');
     expect(env.memberId).toBe('m-1');

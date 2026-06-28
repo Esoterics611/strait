@@ -6,7 +6,7 @@ export const PAYMENT_EVENTS = {
   USDC_CREDITED: 'payment.usdc_credited',
   USDC_DEBITED: 'payment.usdc_debited',
   USDC_LOCKED: 'payment.usdc_locked',
-  BRIDGE_DISPATCHED: 'payment.bridge_dispatched',
+  DISPATCHED: 'payment.dispatched',
   SETTLED: 'payment.settled',
   FAILED: 'payment.failed',
   REFUNDED: 'payment.refunded',

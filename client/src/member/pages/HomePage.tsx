@@ -57,7 +57,7 @@ export function HomePage(): JSX.Element {
               className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-300"
             >
               {r.displayName}
-              {r.bridgeStatus === 'FAILED' && (
+              {r.dispatchStatus === 'FAILED' && (
                 <span
                   className="h-2 w-2 rounded-full bg-rose-500"
                   title={t('rcpt.failed', { name: r.displayName })}

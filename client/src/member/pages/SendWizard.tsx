@@ -112,7 +112,7 @@ export function SendWizard(): JSX.Element {
       api
         .createQuote({
           recipientId,
-          send: { currency: 'ILS', minor: sendMinor },
+          send: { currency: 'USDC', minor: sendMinor },
           payInMethod: payIn,
           payOutMethod: payOut,
         })
@@ -134,7 +134,7 @@ export function SendWizard(): JSX.Element {
   }, [recipientId, sendMinor, payIn, payOut, t]);
 
   const canNext = (): boolean => {
-    if (step === 1) return !!recipient && recipient.bridgeStatus !== 'FAILED';
+    if (step === 1) return !!recipient && recipient.dispatchStatus !== 'FAILED';
     if (step === 2) return !!quote && !belowFloor;
     if (step === 3) return !!payIn;
     if (step === 4) return !!payOut;
@@ -208,17 +208,15 @@ export function SendWizard(): JSX.Element {
                         {r.displayName}
                       </span>
                       <span className="text-xs text-slate-500">
-                        {t('rcpt.maskedTo', {
-                          last4: r.bankAccountLast4 ?? '••••',
-                        })}
+                        {t(payoutMethodLabelKey(r.payoutMethod))}
                       </span>
                     </div>
-                    {r.bridgeStatus === 'REGISTERING' && (
+                    {r.dispatchStatus === 'UNREGISTERED' && (
                       <p className="mt-1 text-xs text-amber-700">
                         {t('wiz.recipient.settingUp')}
                       </p>
                     )}
-                    {r.bridgeStatus === 'FAILED' && (
+                    {r.dispatchStatus === 'FAILED' && (
                       <Link
                         to={`/recipients/${r.recipientId}`}
                         className="mt-1 inline-block text-xs font-medium text-rose-700"
@@ -290,23 +288,20 @@ export function SendWizard(): JSX.Element {
                 {t('wiz.payout.title')}
               </h2>
               <div className="mt-4 space-y-3">
-                {(['BANK_RTP', 'BANK_ACH'] as PayoutMethod[]).map((m) => {
-                  const achOnly = recipient?.payoutMethod === 'BANK_ACH';
-                  const disabled = m !== 'BANK_ACH' && achOnly;
+                {(['WALLET_CHAIN', 'CUSTODIAL'] as PayoutMethod[]).map((m) => {
+                  const disabled = recipient?.payoutMethod !== m;
                   return (
                     <MethodCard
                       key={m}
                       title={t(payoutMethodLabelKey(m))}
                       speed={
-                        m === 'BANK_ACH'
-                          ? t('wiz.payout.standard')
-                          : t('wiz.payout.instant')
+                        m === 'WALLET_CHAIN'
+                          ? t('wiz.payout.onchain')
+                          : t('wiz.payout.custodial')
                       }
                       selected={payOut === m}
                       disabled={disabled}
-                      disabledReason={disabled ? t('wiz.payout.achOnly') : null}
-                      recommended={m === 'BANK_RTP'}
-                      recommendedLabel={t('wiz.payout.recommended')}
+                      disabledReason={disabled ? t('wiz.payout.notConfigured') : null}
                       onSelect={() => setPayOut(m)}
                     />
                   );
@@ -329,7 +324,7 @@ export function SendWizard(): JSX.Element {
                 if (!recipientId || !sendMinor || !payIn || !payOut) return;
                 const q = await api.createQuote({
                   recipientId,
-                  send: { currency: 'ILS', minor: sendMinor },
+                  send: { currency: 'USDC', minor: sendMinor },
                   payInMethod: payIn,
                   payOutMethod: payOut,
                 });
@@ -414,7 +409,7 @@ function ReviewStep({
 
   if (!quote || !recipient) return <Skeleton className="h-64 w-full" />;
 
-  const notReady = recipient.bridgeStatus !== 'READY';
+  const notReady = recipient.dispatchStatus !== 'READY';
 
   return (
     <section>
@@ -424,8 +419,7 @@ function ReviewStep({
       <Card className="mt-4 p-5">
         <dl className="space-y-2 text-sm">
           <Row k={t('wiz.review.to')}>
-            {recipient.displayName} ·{' '}
-            {t('rcpt.maskedTo', { last4: recipient.bankAccountLast4 ?? '••••' })}
+            {recipient.displayName} · {t(payoutMethodLabelKey(recipient.payoutMethod))}
           </Row>
           <Row k={t('rail.youSend')}>
             <MoneyText money={quote.send} bold />

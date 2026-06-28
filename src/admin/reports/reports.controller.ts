@@ -60,7 +60,7 @@ export class ReportsController {
       `WITH per_tx AS (
          SELECT u.tx_id, u.source_type,
                 MIN(t.occurred_at) FILTER (WHERE t.to_state = 'USDC_LOCKED')      AS locked_at,
-                MIN(t.occurred_at) FILTER (WHERE t.to_state = 'SETTLED_USD')     AS settled_at
+                MIN(t.occurred_at) FILTER (WHERE t.to_state = 'SETTLED')         AS settled_at
            FROM usdc_transactions u
            LEFT JOIN tx_state_transitions t ON t.tx_id = u.tx_id
           WHERE u.created_at > NOW() - INTERVAL '30 days'
@@ -99,27 +99,13 @@ export class ReportsController {
               COUNT(*) AS n
          FROM usdc_transactions u
          JOIN tx_state_transitions t ON t.tx_id = u.tx_id
-        WHERE t.to_state IN ('FAILED','FAILED_BRIDGE')
+        WHERE t.to_state IN ('FAILED','FAILED_DISPATCH')
           AND t.occurred_at > NOW() - INTERVAL '30 days'
         GROUP BY 1, 2 ORDER BY n DESC`,
     );
   }
 
-  @Get('reserve-pool')
-  @RequireRole('viewer')
-  async reservePool() {
-    return this.dataSource.query(
-      `SELECT date_trunc('day', created_at)::date AS day,
-              SUM(amount_usdc_wei::numeric) FILTER (WHERE event_type = 'CREDIT_FROM_CUSTODIAN') AS credits,
-              SUM(amount_usdc_wei::numeric) FILTER (WHERE event_type = 'DEBIT_MEMBER_ONRAIL')   AS debits,
-              MAX(pool_balance_after_wei::numeric)                                              AS ending_balance
-         FROM reserve_pool_ledger
-        WHERE created_at > NOW() - INTERVAL '30 days'
-        GROUP BY 1 ORDER BY 1 DESC`,
-    );
-  }
-
-  @Post('export')
+@Post('export')
   @RequireRole('finance')
   async export(@Body() body: ExportBody, @Req() _req: AdminAuthedReq) {
     const job: ExportJob = {

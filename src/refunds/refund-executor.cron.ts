@@ -7,23 +7,10 @@ import { MetricsService } from '../observability/metrics/metrics.service';
 import { RefundExecutorRepository } from './refund-executor.repository';
 import { IRefundExecutor, RefundJobClaim } from './refund-executor.types';
 import { PathAMeshRefundExecutor } from './path-a-mesh-refund.executor';
-import { PathBRapydRefundExecutor } from './path-b-rapyd-refund.executor';
-import { PathCWireRefundExecutor } from './path-c-wire-refund.executor';
 
 const BATCH_SIZE = 25;
 const MAX_ATTEMPTS = 5;
 
-/**
- * Refund executor cron — every minute, claims up to BATCH_SIZE QUEUED jobs
- * whose `next_attempt_at` has elapsed, dispatches each to its path-specific
- * executor, and records the outcome. Race-safe via `FOR UPDATE SKIP LOCKED`
- * in `claimBatch` so multiple cron pods (future) coexist without double-work.
- *
- * Outcome handling:
- *   DONE    → markDone(externalRefundId)
- *   BLOCKED → markBlocked(reason)        — no retry, surfaced in admin UI.
- *   FAILED  → markFailedOrRequeue(...)   — exp-backoff up to MAX_ATTEMPTS.
- */
 @Injectable()
 export class RefundExecutorCron {
   static readonly NAME = 'refund_executor';
@@ -35,16 +22,9 @@ export class RefundExecutorCron {
     private readonly metrics: MetricsService,
     private readonly repo: RefundExecutorRepository,
     private readonly pathA: PathAMeshRefundExecutor,
-    private readonly pathB: PathBRapydRefundExecutor,
-    private readonly pathC: PathCWireRefundExecutor,
   ) {
     this.executorsBySource = new Map<SourceType, IRefundExecutor>([
       [SourceType.MESH, pathA],
-      [SourceType.ONRAMP_RAPYD, pathB],
-      // BoG is stubbed at the adapter level; if a BoG refund ever lands the
-      // adapter throws and the job will fail and surface to operations.
-      [SourceType.ONRAMP_BOG, pathB],
-      [SourceType.SELF_ONRAIL, pathC],
     ]);
   }
 

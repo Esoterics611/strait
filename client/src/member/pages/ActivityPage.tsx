@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useT, fmtDateTime, fmtRelative } from '../../lib/i18n';
-import { api } from '../../lib/api';
+import { api, payoutMethodLabelKey } from '../../lib/api';
 import { stageFor, isTerminalStage } from '../../lib/state-labels';
 import {
   Button,
@@ -133,9 +133,7 @@ export function ActivityDetailPage(): JSX.Element {
         <dl className="mt-4 space-y-2 text-sm">
           <Row k={t('wiz.review.to')}>
             {data.recipient.displayName} ·{' '}
-            {t('rcpt.maskedTo', {
-              last4: data.recipient.bankAccountLast4 ?? '••••',
-            })}
+            {t(payoutMethodLabelKey(data.recipient.payoutMethod))}
           </Row>
           <Row k={t('rail.youSend')}>
             <MoneyText money={data.quote.send} bold />

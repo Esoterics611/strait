@@ -19,21 +19,11 @@ import type {
   Recipient,
 } from '../../lib/contract';
 
-function routingValid(r: string): boolean {
-  if (!/^\d{9}$/.test(r)) return false;
-  const d = r.split('').map(Number);
-  const sum =
-    3 * (d[0] + d[3] + d[6]) +
-    7 * (d[1] + d[4] + d[7]) +
-    1 * (d[2] + d[5] + d[8]);
-  return sum % 10 === 0;
-}
-
-function BridgePill({ r }: { r: Recipient }): JSX.Element {
+function DispatchPill({ r }: { r: Recipient }): JSX.Element {
   const { t } = useT();
-  if (r.bridgeStatus === 'READY')
+  if (r.dispatchStatus === 'READY')
     return <span className="text-xs font-medium text-emerald-700">●&nbsp;{t('rcpt.ready', { name: '' }).trim()}</span>;
-  if (r.bridgeStatus === 'FAILED')
+  if (r.dispatchStatus === 'FAILED')
     return <span className="text-xs font-medium text-rose-700">●&nbsp;{t('rcpt.failed', { name: r.displayName })}</span>;
   return (
     <span className="text-xs font-medium text-amber-700">
@@ -41,6 +31,17 @@ function BridgePill({ r }: { r: Recipient }): JSX.Element {
       {t('rcpt.submitting')}
     </span>
   );
+}
+
+function recipientSubtitle(r: Recipient): string {
+  if (r.payoutMethod === 'WALLET_CHAIN' && r.wallet?.walletAddress) {
+    const addr = r.wallet.walletAddress;
+    return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+  }
+  if (r.payoutMethod === 'CUSTODIAL' && r.custodial?.last4) {
+    return `••••${r.custodial.last4}`;
+  }
+  return r.payoutMethod;
 }
 
 export function RecipientsListPage(): JSX.Element {
@@ -78,10 +79,10 @@ export function RecipientsListPage(): JSX.Element {
                   {r.displayName}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {t('rcpt.maskedTo', { last4: r.bankAccountLast4 ?? '••••' })}
+                  {recipientSubtitle(r)}
                 </p>
               </div>
-              <BridgePill r={r} />
+              <DispatchPill r={r} />
             </Card>
           </Link>
         ))}
@@ -99,27 +100,37 @@ export function RecipientFormPage(): JSX.Element {
 
   const [displayName, setName] = useState('');
   const [relationship, setRel] = useState('');
-  const [payoutMethod, setMethod] = useState<PayoutMethod>('BANK_RTP');
-  const [account, setAccount] = useState('');
-  const [routing, setRouting] = useState('');
-  const [accountType, setType] = useState<'checking' | 'savings'>('checking');
+  const [payoutMethod, setMethod] = useState<PayoutMethod>('WALLET_CHAIN');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [chainId, setChainId] = useState('8453');
+  const [custodialProvider, setCustodialProvider] = useState('');
+  const [custodialAccountId, setCustodialAccountId] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (): Promise<void> => {
     const e: Record<string, string> = {};
     if (!displayName.trim()) e.name = t('rcpt.err.name');
-    if (!account.trim()) e.account = t('rcpt.err.account');
-    if (!routingValid(routing)) e.routing = t('rcpt.err.routing');
+    if (payoutMethod === 'WALLET_CHAIN' && !walletAddress.trim()) e.wallet = t('rcpt.err.wallet');
+    if (payoutMethod === 'CUSTODIAL' && !custodialAccountId.trim()) e.custodial = t('rcpt.err.custodial');
     setErrors(e);
     if (Object.keys(e).length) return;
 
-    const req: CreateRecipientReq = {
-      displayName: displayName.trim(),
-      relationship: relationship.trim() || undefined,
-      payoutMethod,
-      bank: { accountNumber: account.trim(), routingNumber: routing, accountType },
-    };
+    const req: CreateRecipientReq =
+      payoutMethod === 'WALLET_CHAIN'
+        ? {
+            displayName: displayName.trim(),
+            relationship: relationship.trim() || undefined,
+            payoutMethod: 'WALLET_CHAIN',
+            wallet: { chainId: parseInt(chainId, 10) as 1 | 8453, walletAddress: walletAddress.trim() },
+          }
+        : {
+            displayName: displayName.trim(),
+            relationship: relationship.trim() || undefined,
+            payoutMethod: 'CUSTODIAL',
+            custodial: { providerKey: custodialProvider.trim(), externalAccountId: custodialAccountId.trim() },
+          };
+
     setSubmitting(true);
     try {
       const rec = await api.createRecipient(req);
@@ -132,7 +143,7 @@ export function RecipientFormPage(): JSX.Element {
     } catch (err) {
       if (err instanceof ApiError && err.code === 'DUPLICATE') {
         setErrors({
-          account: t('rcpt.duplicate', { name: err.message.split(':')[1] ?? '' }),
+          form: t('rcpt.duplicate', { name: err.message.split(':')[1] ?? '' }),
         });
       } else {
         setErrors({ form: t('common.somethingWrong') });
@@ -166,40 +177,44 @@ export function RecipientFormPage(): JSX.Element {
             value={payoutMethod}
             onChange={setMethod}
             options={[
-              { value: 'BANK_RTP', label: 'RTP' },
-              { value: 'BANK_FEDNOW', label: 'FedNow' },
-              { value: 'BANK_ACH', label: 'ACH' },
+              { value: 'WALLET_CHAIN', label: t('payout.WALLET_CHAIN') },
+              { value: 'CUSTODIAL', label: t('payout.CUSTODIAL') },
             ]}
           />
         </div>
-        <TextInput
-          label={t('rcpt.bank.account')}
-          numeric
-          value={account}
-          onChange={(e) => setAccount(e.target.value.replace(/\D/g, ''))}
-          error={errors.account}
-        />
-        <TextInput
-          label={t('rcpt.bank.routing')}
-          numeric
-          value={routing}
-          onChange={(e) => setRouting(e.target.value.replace(/\D/g, '').slice(0, 9))}
-          error={errors.routing}
-        />
-        <div>
-          <p className="mb-1 text-sm font-medium text-slate-700">
-            {t('rcpt.bank.type')}
-          </p>
-          <Segmented<'checking' | 'savings'>
-            ariaLabel={t('rcpt.bank.type')}
-            value={accountType}
-            onChange={setType}
-            options={[
-              { value: 'checking', label: t('rcpt.bank.checking') },
-              { value: 'savings', label: t('rcpt.bank.savings') },
-            ]}
-          />
-        </div>
+
+        {payoutMethod === 'WALLET_CHAIN' && (
+          <>
+            <TextInput
+              label={t('rcpt.wallet.address')}
+              value={walletAddress}
+              onChange={(e) => setWalletAddress(e.target.value.trim())}
+              error={errors.wallet}
+            />
+            <TextInput
+              label={t('rcpt.wallet.chainId')}
+              numeric
+              value={chainId}
+              onChange={(e) => setChainId(e.target.value.replace(/\D/g, ''))}
+            />
+          </>
+        )}
+
+        {payoutMethod === 'CUSTODIAL' && (
+          <>
+            <TextInput
+              label={t('rcpt.custodial.provider')}
+              value={custodialProvider}
+              onChange={(e) => setCustodialProvider(e.target.value)}
+            />
+            <TextInput
+              label={t('rcpt.custodial.accountId')}
+              value={custodialAccountId}
+              onChange={(e) => setCustodialAccountId(e.target.value.trim())}
+              error={errors.custodial}
+            />
+          </>
+        )}
 
         <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
           {t('rcpt.trust')}
@@ -233,7 +248,7 @@ export function RecipientDetailPage(): JSX.Element {
         .then((r) => {
           if (cancelled) return;
           setRec(r);
-          if (r.bridgeStatus === 'REGISTERING' || r.bridgeStatus === 'UNREGISTERED') {
+          if (r.dispatchStatus === 'UNREGISTERED') {
             const delay = Math.min(5000, 800 * 2 ** attempt++);
             pollRef.current = setTimeout(tick, delay);
           }
@@ -257,18 +272,6 @@ export function RecipientDetailPage(): JSX.Element {
       </div>
     );
 
-  const retry = async (): Promise<void> => {
-    if (!id) return;
-    const updated = await api.updateRecipient(id, {
-      bank: {
-        accountNumber: `0000${rec.bankAccountLast4 ?? '0000'}`,
-        routingNumber: '021000021',
-        accountType: 'checking',
-      },
-    });
-    setRec(updated);
-  };
-
   return (
     <div className="mx-auto max-w-md px-4 py-8">
       <button
@@ -279,28 +282,21 @@ export function RecipientDetailPage(): JSX.Element {
       </button>
       <Card className="mt-4 p-5">
         <h1 className="text-lg font-semibold text-slate-900">{rec.displayName}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {t('rcpt.maskedTo', { last4: rec.bankAccountLast4 ?? '••••' })}
-        </p>
+        <p className="mt-1 text-sm text-slate-500">{recipientSubtitle(rec)}</p>
         <div className="mt-4">
-          <BridgePill r={rec} />
+          <DispatchPill r={rec} />
         </div>
-        {rec.bridgeStatus === 'REGISTERING' && (
+        {rec.dispatchStatus === 'UNREGISTERED' && (
           <p className="mt-3 text-sm text-amber-700">
             {t('rcpt.registering', { name: rec.displayName })}
           </p>
         )}
-        {rec.bridgeStatus === 'FAILED' && (
+        {rec.dispatchStatus === 'FAILED' && (
           <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-            <p>{rec.bridgeError ?? t('rcpt.failed', { name: rec.displayName })}</p>
-            <div className="mt-3">
-              <Button variant="secondary" onClick={retry}>
-                {t('action.retry')}
-              </Button>
-            </div>
+            <p>{rec.dispatchError ?? t('rcpt.failed', { name: rec.displayName })}</p>
           </div>
         )}
-        {rec.bridgeStatus === 'READY' && (
+        {rec.dispatchStatus === 'READY' && (
           <div className="mt-5">
             <Button
               onClick={() =>

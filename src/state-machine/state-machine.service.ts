@@ -12,26 +12,22 @@ import { randomUUID } from 'crypto';
 type TransitionMap = Partial<Record<TxState, TxState[]>>;
 
 const TRANSITIONS: TransitionMap = {
-  [TxState.MESH_PENDING]:           [TxState.USDC_LOCKED, TxState.FAILED],
-  [TxState.ILS_PENDING_ONRAMP]:     [TxState.ILS_SWAP_PROCESSING, TxState.FAILED],
-  [TxState.ILS_SWAP_PROCESSING]:    [TxState.USDC_LOCKED, TxState.FAILED],
-  [TxState.ILS_PENDING_COLLECTION]: [TxState.ILS_WIRE_CONFIRMED, TxState.FAILED],
-  [TxState.ILS_WIRE_CONFIRMED]:     [TxState.USDC_LOCKED, TxState.FAILED],
-  [TxState.USDC_LOCKED]:            [TxState.BRIDGE_DISPATCHED, TxState.FAILED_BRIDGE],
-  [TxState.BRIDGE_DISPATCHED]:      [TxState.SETTLED_USD, TxState.FAILED_BRIDGE],
-  [TxState.FAILED]:                 [TxState.REFUND_QUEUED],
-  [TxState.FAILED_BRIDGE]:          [TxState.REFUND_QUEUED],
-  [TxState.REFUND_QUEUED]:          [TxState.REFUNDED],
-  // SETTLED_USD and REFUNDED are terminal — no outbound edges.
+  [TxState.MESH_PENDING]:    [TxState.USDC_LOCKED, TxState.FAILED],
+  [TxState.USDC_LOCKED]:     [TxState.DISPATCHED, TxState.FAILED_DISPATCH],
+  [TxState.DISPATCHED]:      [TxState.SETTLED, TxState.FAILED_DISPATCH],
+  [TxState.FAILED]:          [TxState.REFUND_QUEUED],
+  [TxState.FAILED_DISPATCH]: [TxState.REFUND_QUEUED],
+  [TxState.REFUND_QUEUED]:   [TxState.REFUNDED],
+  // SETTLED and REFUNDED are terminal — no outbound edges.
 };
 
 const STATE_TO_EVENT: Partial<Record<TxState, string>> = {
-  [TxState.USDC_LOCKED]:       PAYMENT_EVENTS.USDC_LOCKED,
-  [TxState.BRIDGE_DISPATCHED]: PAYMENT_EVENTS.BRIDGE_DISPATCHED,
-  [TxState.SETTLED_USD]:       PAYMENT_EVENTS.SETTLED,
-  [TxState.FAILED]:            PAYMENT_EVENTS.FAILED,
-  [TxState.FAILED_BRIDGE]:     PAYMENT_EVENTS.FAILED,
-  [TxState.REFUNDED]:          PAYMENT_EVENTS.REFUNDED,
+  [TxState.USDC_LOCKED]:     PAYMENT_EVENTS.USDC_LOCKED,
+  [TxState.DISPATCHED]:      PAYMENT_EVENTS.DISPATCHED,
+  [TxState.SETTLED]:         PAYMENT_EVENTS.SETTLED,
+  [TxState.FAILED]:          PAYMENT_EVENTS.FAILED,
+  [TxState.FAILED_DISPATCH]: PAYMENT_EVENTS.FAILED,
+  [TxState.REFUNDED]:        PAYMENT_EVENTS.REFUNDED,
 };
 
 @Injectable()
@@ -74,8 +70,6 @@ export class StateMachineService {
 
     const eventName = STATE_TO_EVENT[toState];
 
-    // Non-event transitions are byte-for-byte unchanged: a single autocommit
-    // INSERT, no outbox, no emit.
     if (!eventName) {
       await this.dataSource.query(transitionSql, transitionParams);
       this.blog.info('transition', {
@@ -95,9 +89,6 @@ export class StateMachineService {
       payload: { txId, fromState: currentState, toState, metadata },
     };
 
-    // ARCH-1 Phase 3: the state-transition row and the outbox event row
-    // commit ATOMICALLY — the event can no longer be lost if the process
-    // dies after the transition (closes the gap noted in CLAUDE.md §10e).
     let outboxId: string;
     await this.dataSource.transaction(async (em) => {
       await em.query(transitionSql, transitionParams);
@@ -108,12 +99,6 @@ export class StateMachineService {
       detail: { outboxId: outboxId!, event: eventName },
     });
 
-    // Happy path: emit the in-memory event on the same bus, exactly as
-    // before the outbox existed — same object, same synchronous delivery to
-    // listeners, same transition() completion semantics. The outbox row is
-    // then retired; a failure here is non-fatal (the sweep re-delivers, and
-    // every consumer is idempotent), so transition() still succeeds once the
-    // state change is durably committed — unchanged behaviour.
     this.events.emit(eventName as Parameters<typeof this.events.emit>[0], event);
     try {
       await this.outbox.markDispatched(outboxId!);
@@ -133,7 +118,6 @@ export class StateMachineService {
   }
 
   async getCurrentState(txId: string): Promise<TxState> {
-    // Try tx_state_transitions first (subsequent transitions).
     const rows = await this.dataSource.query<{ current_state: TxState }[]>(
       `SELECT current_state FROM v_tx_current_state WHERE tx_id = $1`,
       [txId],
@@ -146,7 +130,6 @@ export class StateMachineService {
       return rows[0].current_state;
     }
 
-    // Fall back to usdc_transactions.state (the immutable initial state at insert).
     const txRows = await this.dataSource.query<{ state: TxState }[]>(
       `SELECT state FROM usdc_transactions WHERE tx_id = $1`,
       [txId],

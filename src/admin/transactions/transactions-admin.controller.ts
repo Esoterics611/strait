@@ -94,9 +94,4 @@ export class TransactionsAdminController {
     );
   }
 
-  @Post(':txId/refresh-provider')
-  @RequireRole('ops')
-  async refresh(@Param('txId') txId: string, @Req() req: AdminAuthedReq) {
-    return this.txs.refreshProvider(txId, req.adminUser.sub);
-  }
 }

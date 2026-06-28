@@ -28,7 +28,7 @@ import { IDomainEvent } from '@common/interfaces';
 //   3. meshInitiate     — wraps MeshService.initiateTransfer. The mock Mesh
 //                         client self-delivers transfer.created +
 //                         transfer.settled, which cascades through to
-//                         BRIDGE_DISPATCHED → SETTLED_USD.
+//                         DISPATCHED → SETTLED.
 @Injectable()
 export class DevToolsService {
   private readonly blog = new BusinessLogger('DevToolsService');

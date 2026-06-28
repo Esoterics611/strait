@@ -8,7 +8,7 @@ export default defineConfig({
         alias: {
             // single-source §7 contract (type-only today; alias future-proofs any
             // value import and keeps dev-server resolution correct)
-            '@lira/contract': resolve(__dirname, '..', 'packages', 'contract', 'src', 'index.ts'),
+            '@strait/contract': resolve(__dirname, '..', 'packages', 'contract', 'src', 'index.ts'),
         },
     },
     build: {

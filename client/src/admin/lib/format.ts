@@ -31,12 +31,11 @@ export function explorerUrl(hash: string, chainId?: number): string {
 }
 
 export function stateColor(state: string): string {
-  if (state.endsWith('SETTLED_USD')) return 'bg-emerald-100 text-emerald-800';
+  if (state === 'SETTLED') return 'bg-emerald-100 text-emerald-800';
   if (state.startsWith('FAILED')) return 'bg-rose-100 text-rose-800';
   if (state === 'REFUNDED') return 'bg-slate-200 text-slate-700';
-  if (state.endsWith('PENDING') || state.endsWith('PENDING_ONRAMP') || state.endsWith('PROCESSING') || state.endsWith('PENDING_COLLECTION'))
-    return 'bg-amber-100 text-amber-800';
-  if (state === 'USDC_LOCKED' || state === 'BRIDGE_DISPATCHED' || state === 'ILS_WIRE_CONFIRMED')
+  if (state === 'MESH_PENDING') return 'bg-amber-100 text-amber-800';
+  if (state === 'USDC_LOCKED' || state === 'DISPATCHED')
     return 'bg-sky-100 text-sky-800';
   return 'bg-slate-100 text-slate-700';
 }

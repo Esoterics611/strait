@@ -14,10 +14,8 @@ import { hasRole, useAdminAuth } from '../AdminAuthContext';
 import { ErrorBanner } from './DashboardPage';
 
 const STATES = [
-  'MESH_PENDING', 'ILS_PENDING_ONRAMP', 'ILS_SWAP_PROCESSING',
-  'ILS_PENDING_COLLECTION', 'ILS_WIRE_CONFIRMED',
-  'USDC_LOCKED', 'BRIDGE_DISPATCHED', 'SETTLED_USD',
-  'FAILED', 'FAILED_BRIDGE', 'REFUND_QUEUED', 'REFUNDED',
+  'MESH_PENDING', 'USDC_LOCKED', 'DISPATCHED', 'SETTLED',
+  'FAILED', 'FAILED_DISPATCH', 'REFUND_QUEUED', 'REFUNDED',
 ];
 
 export function TransactionsListPage(): JSX.Element {

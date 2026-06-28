@@ -17,13 +17,11 @@ import { IdempotencyModule } from './idempotency/idempotency.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { StateMachineModule } from './state-machine/state-machine.module';
-import { BridgeModule } from './bridge/bridge.module';
+import { DispatchModule } from './dispatch/dispatch.module';
 import { RecipientsModule } from './recipients/recipients.module';
-import { OnRampModule } from './onramp/onramp.module';
 import { MeshModule } from './mesh/mesh.module';
 import { ApiModule } from './api/api.module';
 import { AdminModule } from './admin/admin.module';
-import { PathCModule } from './path-c/path-c.module';
 import { DevToolsModule } from './dev-tools/dev-tools.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RefundsModule } from './refunds/refunds.module';
@@ -54,12 +52,10 @@ import { ISecretProvider } from './secrets/secret-provider.interface';
     WebhooksModule,
     LedgerModule,
     StateMachineModule,
-    BridgeModule,
+    DispatchModule,
     RecipientsModule,
-    OnRampModule,
     MeshModule,
     AdminModule,
-    PathCModule,
     DevToolsModule,
     ObservabilityModule,
     MemberAuthModule,
@@ -68,9 +64,6 @@ import { ISecretProvider } from './secrets/secret-provider.interface';
     ...(existsSync(join(__dirname, '..', '..', 'dist', 'client', 'index.html'))
       ? [ServeStaticModule.forRoot({
           rootPath: join(__dirname, '..', '..', 'dist', 'client'),
-          // NOTE: do NOT exclude /admin/{*splat} here. Admin API routes are matched
-          // by Nest controllers first; any remaining /admin/* GET falls through to
-          // the SPA so React Router can render /admin/login, /admin/members, etc.
           exclude: ['/api/{*splat}', '/webhooks/{*splat}', '/metrics'],
           serveStaticOptions: { fallthrough: true },
         })]

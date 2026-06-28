@@ -7,9 +7,6 @@ import { DataSource } from 'typeorm';
 
 const TX_ID = 'tx-test-1';
 
-// Build a mock DataSource where getCurrentState returns `state`, the
-// transition INSERT succeeds, and the event-bearing path's atomic
-// transaction(em => …) runs the callback against a mock EntityManager.
 function makeDs(currentState: TxState | null): DataSource {
   const query = jest.fn().mockImplementation((sql: string) => {
     if (sql.includes('v_tx_current_state')) {
@@ -22,7 +19,6 @@ function makeDs(currentState: TxState | null): DataSource {
         ? Promise.resolve([{ state: currentState }])
         : Promise.resolve([]);
     }
-    // INSERT into tx_state_transitions (non-event path)
     return Promise.resolve(undefined);
   });
   return {
@@ -48,23 +44,15 @@ function makeOutbox() {
 describe('StateMachineService', () => {
   describe('valid transitions', () => {
     const validCases: [TxState, TxState][] = [
-      [TxState.MESH_PENDING,           TxState.USDC_LOCKED],
-      [TxState.MESH_PENDING,           TxState.FAILED],
-      [TxState.ILS_PENDING_ONRAMP,     TxState.ILS_SWAP_PROCESSING],
-      [TxState.ILS_PENDING_ONRAMP,     TxState.FAILED],
-      [TxState.ILS_SWAP_PROCESSING,    TxState.USDC_LOCKED],
-      [TxState.ILS_SWAP_PROCESSING,    TxState.FAILED],
-      [TxState.ILS_PENDING_COLLECTION, TxState.ILS_WIRE_CONFIRMED],
-      [TxState.ILS_PENDING_COLLECTION, TxState.FAILED],
-      [TxState.ILS_WIRE_CONFIRMED,     TxState.USDC_LOCKED],
-      [TxState.ILS_WIRE_CONFIRMED,     TxState.FAILED],
-      [TxState.USDC_LOCKED,            TxState.BRIDGE_DISPATCHED],
-      [TxState.USDC_LOCKED,            TxState.FAILED_BRIDGE],
-      [TxState.BRIDGE_DISPATCHED,      TxState.SETTLED_USD],
-      [TxState.BRIDGE_DISPATCHED,      TxState.FAILED_BRIDGE],
-      [TxState.FAILED,                 TxState.REFUND_QUEUED],
-      [TxState.FAILED_BRIDGE,          TxState.REFUND_QUEUED],
-      [TxState.REFUND_QUEUED,          TxState.REFUNDED],
+      [TxState.MESH_PENDING,    TxState.USDC_LOCKED],
+      [TxState.MESH_PENDING,    TxState.FAILED],
+      [TxState.USDC_LOCKED,     TxState.DISPATCHED],
+      [TxState.USDC_LOCKED,     TxState.FAILED_DISPATCH],
+      [TxState.DISPATCHED,      TxState.SETTLED],
+      [TxState.DISPATCHED,      TxState.FAILED_DISPATCH],
+      [TxState.FAILED,          TxState.REFUND_QUEUED],
+      [TxState.FAILED_DISPATCH, TxState.REFUND_QUEUED],
+      [TxState.REFUND_QUEUED,   TxState.REFUNDED],
     ];
 
     it.each(validCases)(
@@ -78,16 +66,15 @@ describe('StateMachineService', () => {
 
   describe('invalid transitions', () => {
     const invalidCases: [TxState, TxState][] = [
-      [TxState.MESH_PENDING,      TxState.SETTLED_USD],
-      [TxState.MESH_PENDING,      TxState.BRIDGE_DISPATCHED],
-      [TxState.USDC_LOCKED,       TxState.MESH_PENDING],
-      [TxState.BRIDGE_DISPATCHED, TxState.USDC_LOCKED],
-      [TxState.FAILED,            TxState.USDC_LOCKED],
-      [TxState.REFUNDED,          TxState.REFUND_QUEUED],
-      [TxState.SETTLED_USD,       TxState.BRIDGE_DISPATCHED],
-      [TxState.ILS_PENDING_ONRAMP, TxState.SETTLED_USD],
-      [TxState.REFUND_QUEUED,     TxState.MESH_PENDING],
-      [TxState.FAILED_BRIDGE,     TxState.SETTLED_USD],
+      [TxState.MESH_PENDING,    TxState.SETTLED],
+      [TxState.MESH_PENDING,    TxState.DISPATCHED],
+      [TxState.USDC_LOCKED,     TxState.MESH_PENDING],
+      [TxState.DISPATCHED,      TxState.USDC_LOCKED],
+      [TxState.FAILED,          TxState.USDC_LOCKED],
+      [TxState.REFUNDED,        TxState.REFUND_QUEUED],
+      [TxState.SETTLED,         TxState.DISPATCHED],
+      [TxState.REFUND_QUEUED,   TxState.MESH_PENDING],
+      [TxState.FAILED_DISPATCH, TxState.SETTLED],
     ];
 
     it.each(invalidCases)(
@@ -102,9 +89,9 @@ describe('StateMachineService', () => {
   });
 
   describe('terminal states', () => {
-    it('SETTLED_USD rejects any further transition', async () => {
+    it('SETTLED rejects any further transition', async () => {
       for (const next of Object.values(TxState)) {
-        const svc = new StateMachineService(makeDs(TxState.SETTLED_USD), makeEvents(), makeOutbox());
+        const svc = new StateMachineService(makeDs(TxState.SETTLED), makeEvents(), makeOutbox());
         await expect(svc.transition(TX_ID, next)).rejects.toBeInstanceOf(
           InvalidTransitionError,
         );
@@ -130,8 +117,8 @@ describe('StateMachineService', () => {
     it('falls back to usdc_transactions.state when no transition row yet', async () => {
       const ds = {
         query: jest.fn()
-          .mockResolvedValueOnce([])                           // v_tx_current_state — empty
-          .mockResolvedValueOnce([{ state: TxState.MESH_PENDING }]), // usdc_transactions
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ state: TxState.MESH_PENDING }]),
       } as unknown as DataSource;
       const svc = new StateMachineService(ds, makeEvents(), makeOutbox());
       expect(await svc.getCurrentState(TX_ID)).toBe(TxState.MESH_PENDING);
@@ -140,8 +127,8 @@ describe('StateMachineService', () => {
     it('throws TransactionNotFoundError for unknown txId', async () => {
       const ds = {
         query: jest.fn()
-          .mockResolvedValueOnce([])  // v_tx_current_state
-          .mockResolvedValueOnce([]), // usdc_transactions
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([]),
       } as unknown as DataSource;
       const svc = new StateMachineService(ds, makeEvents(), makeOutbox());
       await expect(svc.getCurrentState('unknown-tx')).rejects.toBeInstanceOf(

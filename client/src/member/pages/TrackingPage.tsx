@@ -16,7 +16,6 @@ import {
   useToast,
 } from '../../components/member';
 import { Stepper } from '../../components/member';
-import { ACHDelayBanner } from '../../components/ACHDelayBanner';
 import { useTxStatus } from '../../hooks/useTxStatus';
 import { useAsync } from '../useAsync';
 import type { StageKey, Transfer } from '../../lib/contract';
@@ -35,10 +34,9 @@ export function TrackingPage(): JSX.Element {
         state: tx.state,
         stage: stageFor(tx.state),
         etaText: tx.quote.etaText,
-        achEstimatedDate: null,
-        bridgeTransferId: null,
+        dispatchTxHash: null,
         settledAt: null,
-        railUsed: null,
+        payoutMethodUsed: null,
         failureReason: null,
         refundExpectedBy: null,
       }
@@ -77,7 +75,7 @@ export function TrackingPage(): JSX.Element {
 
   const recipientName = tx.recipient.displayName;
   const recipientSetup =
-    stage === 'READYING' && tx.recipient.bridgeStatus !== 'READY';
+    stage === 'READYING' && tx.recipient.dispatchStatus !== 'READY';
   const terminal = isTerminalStage(stage);
 
   return (
@@ -125,10 +123,6 @@ export function TrackingPage(): JSX.Element {
 
       {/* contextual zone */}
       <div className="mt-6 space-y-4">
-        {snap.achEstimatedDate && stage === 'DELIVERING' && (
-          <ACHDelayBanner estimatedDate={snap.achEstimatedDate} />
-        )}
-
         {stage === 'DONE' && (
           <Card className="border-emerald-200 bg-emerald-50 p-6 text-center">
             <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-500 text-2xl text-white motion-safe:animate-[fade-in_.3s_ease-out]">
@@ -188,7 +182,7 @@ export function TrackingPage(): JSX.Element {
           </Card>
         )}
 
-        {stage === 'FAILED_BRIDGE' && (
+        {stage === 'FAILED_DISPATCH' && (
           <Card className="border-rose-200 bg-rose-50 p-6">
             <p className="font-semibold text-rose-900">
               {t('track.fail.bridge', {
@@ -199,9 +193,9 @@ export function TrackingPage(): JSX.Element {
                   : '—',
               })}
             </p>
-            {snap.bridgeTransferId && (
+            {snap.dispatchTxHash && (
               <p className="mt-2 text-xs text-rose-700">
-                {t('common.reference', { id: snap.bridgeTransferId })}
+                {t('common.reference', { id: snap.dispatchTxHash })}
               </p>
             )}
           </Card>
@@ -225,9 +219,9 @@ export function TrackingPage(): JSX.Element {
             <p className="font-medium text-slate-800">
               {t('track.refunded', { total: fmtMoney(tx.quote.send, lang) })}
             </p>
-            {snap.bridgeTransferId && (
+            {snap.dispatchTxHash && (
               <p className="mt-2 text-xs text-slate-500">
-                {t('common.reference', { id: snap.bridgeTransferId })}
+                {t('common.reference', { id: snap.dispatchTxHash })}
               </p>
             )}
           </Card>
@@ -240,14 +234,14 @@ export function TrackingPage(): JSX.Element {
         )}
       </div>
 
-      {(snap.bridgeTransferId || snap.settledAt) && (
+      {(snap.dispatchTxHash || snap.settledAt) && (
         <Card className="mt-6 p-5 text-sm">
           <h2 className="font-semibold text-slate-900">{t('track.settlement')}</h2>
           <dl className="mt-3 space-y-1.5">
-            {snap.bridgeTransferId && (
-              <Detail k={t('track.bridgeId')} v={snap.bridgeTransferId} mono />
+            {snap.dispatchTxHash && (
+              <Detail k={t('track.dispatchTxHash')} v={snap.dispatchTxHash} mono />
             )}
-            {snap.railUsed && <Detail k={t('track.rail')} v={snap.railUsed} />}
+            {snap.payoutMethodUsed && <Detail k={t('track.payoutMethod')} v={snap.payoutMethodUsed} />}
             {snap.settledAt && (
               <Detail k={t('track.settledAt')} v={fmtDateTime(snap.settledAt, lang)} />
             )}
@@ -284,9 +278,8 @@ function MockScenarioControl(): JSX.Element {
   const [s, setS] = useState<MockScenario>(api.mock?.scenario ?? 'happy');
   const opts: MockScenario[] = [
     'happy',
-    'ach',
     'failed',
-    'failed_bridge',
+    'failed_dispatch',
     'reversed',
   ];
   return (

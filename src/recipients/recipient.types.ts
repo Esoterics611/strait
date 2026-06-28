@@ -1,15 +1,7 @@
-// Canonical shape of a row in the `recipients` table, as returned by
-// RecipientsRepository. Snake-case matches the DB column names (existing
-// repo-returns-raw-rows convention). The `@strait/contract` Recipient
-// shape (used over the wire) is camelCase and is projected from this row
-// by RecipientsService.toPublic().
-export type RecipientPayoutMethod = 'WALLET_CHAIN' | 'CUSTODIAL';
+import type { Recipient, PayoutMethod, DispatchStatus } from '@strait/contract';
 
-export type RecipientDispatchStatus =
-  | 'UNREGISTERED'
-  | 'REGISTERING'
-  | 'READY'
-  | 'FAILED';
+export type RecipientPayoutMethod = PayoutMethod;
+export type RecipientDispatchStatus = DispatchStatus;
 
 export interface RecipientRow {
   recipient_id: string;
@@ -19,11 +11,11 @@ export interface RecipientRow {
 
   payout_method: RecipientPayoutMethod;
 
-  // WALLET_CHAIN fields — non-null iff payout_method === 'WALLET_CHAIN'
+  // WALLET_CHAIN — non-null iff payout_method === 'WALLET_CHAIN'
   wallet_chain_id: number | null;   // 1 (Ethereum mainnet) | 8453 (Base)
   wallet_address: string | null;    // 0x-prefixed
 
-  // CUSTODIAL fields — non-null iff payout_method === 'CUSTODIAL'
+  // CUSTODIAL — non-null iff payout_method === 'CUSTODIAL'
   custodial_provider: string | null;
   custodial_external_id: string | null;
   custodial_last4: string | null;
@@ -32,4 +24,34 @@ export interface RecipientRow {
   dispatch_error: string | null;
 
   created_at: Date;
+}
+
+export type RecipientDto = Recipient;
+
+export interface CreateRecipientReq {
+  displayName: string;
+  relationship?: string;
+  payoutMethod: RecipientPayoutMethod;
+  wallet?: { chainId: 1 | 8453; walletAddress: string };
+  custodial?: { providerKey: string; externalAccountId: string };
+}
+
+export type UpdateRecipientReq = Partial<Pick<CreateRecipientReq, 'displayName' | 'relationship'>>;
+
+export function toRecipientDto(row: RecipientRow): RecipientDto {
+  return {
+    recipientId: row.recipient_id,
+    displayName: row.display_name,
+    relationship: row.relationship,
+    payoutMethod: row.payout_method,
+    dispatchStatus: row.dispatch_status,
+    dispatchError: row.dispatch_error,
+    createdAt: (row.created_at instanceof Date ? row.created_at : new Date(row.created_at)).toISOString(),
+    wallet: row.payout_method === 'WALLET_CHAIN' && row.wallet_chain_id && row.wallet_address
+      ? { chainId: row.wallet_chain_id as 1 | 8453, walletAddress: row.wallet_address }
+      : null,
+    custodial: row.payout_method === 'CUSTODIAL' && row.custodial_provider
+      ? { providerKey: row.custodial_provider, last4: row.custodial_last4 }
+      : null,
+  };
 }

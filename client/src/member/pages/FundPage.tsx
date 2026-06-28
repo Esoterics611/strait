@@ -2,7 +2,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useT } from '../../lib/i18n';
 import { api } from '../../lib/api';
 import { Button, Card, ErrorState, Skeleton } from '../../components/member';
-import { VirtualAccountDisplay } from '../../components/VirtualAccountDisplay';
 import { useAsync } from '../useAsync';
 import type { Transfer } from '../../lib/contract';
 
@@ -52,45 +51,6 @@ export function FundPage(): JSX.Element {
           </Card>
         )}
 
-        {pi.method === 'ONRAMP' && pi.onramp && (
-          <div className="space-y-4">
-            <VirtualAccountDisplay
-              fields={[
-                { label: t('fund.onramp.bank'), value: pi.onramp.bankName },
-                {
-                  label: t('fund.onramp.account'),
-                  value: pi.onramp.accountNumber,
-                },
-                {
-                  label: t('fund.onramp.reference'),
-                  value: pi.onramp.reference,
-                },
-              ]}
-            />
-            <NextSteps />
-          </div>
-        )}
-
-        {pi.method === 'IL_BANK' && pi.ilBank && (
-          <div className="space-y-4">
-            <VirtualAccountDisplay
-              fields={[
-                {
-                  label: t('fund.ilbank.beneficiary'),
-                  value: pi.ilBank.beneficiary,
-                },
-                { label: t('fund.ilbank.iban'), value: pi.ilBank.iban },
-                {
-                  label: t('fund.ilbank.reference'),
-                  value: pi.ilBank.reference,
-                },
-              ]}
-            />
-            <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              {t('fund.ilbank.window')}
-            </p>
-          </div>
-        )}
       </div>
 
       <div className="mt-8">
@@ -102,18 +62,3 @@ export function FundPage(): JSX.Element {
   );
 }
 
-function NextSteps(): JSX.Element {
-  const { t } = useT();
-  return (
-    <Card className="p-5">
-      <h2 className="text-sm font-semibold text-slate-900">
-        {t('fund.onramp.next')}
-      </h2>
-      <ol className="mt-3 list-decimal space-y-1 ps-5 text-sm text-slate-600">
-        <li>{t('fund.onramp.step1')}</li>
-        <li>{t('fund.onramp.step2')}</li>
-        <li>{t('fund.onramp.step3')}</li>
-      </ol>
-    </Card>
-  );
-}

@@ -1,20 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import type {
-  BridgeStatus,
-  PayoutMethod,
-  RecipientRow,
-} from './recipient.types';
+import type { RecipientPayoutMethod, RecipientRow } from './recipient.types';
 
 interface CreateInput {
-  ownerMemberId: string;
+  memberid: string;
   displayName: string;
   relationship: string | null;
-  payoutMethod: PayoutMethod;
-  bankAccountLast4: string;
-  bankRoutingLast4: string;
-  bankToken: string;
+  payoutMethod: RecipientPayoutMethod;
+  walletChainId?: number;
+  walletAddress?: string;
+  custodialProvider?: string;
+  custodialExternalId?: string;
+  custodialLast4?: string;
+  dispatchStatus: string;
 }
 
 @Injectable()
@@ -24,46 +23,43 @@ export class RecipientsRepository {
   async create(input: CreateInput): Promise<RecipientRow> {
     const rows = await this.dataSource.query<RecipientRow[]>(
       `INSERT INTO recipients
-         (owner_member_id, display_name, relationship, payout_method,
-          bank_account_last4, bank_routing_last4, bank_token, bridge_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'REGISTERING')
+         (member_id, display_name, relationship, payout_method,
+          wallet_chain_id, wallet_address,
+          custodial_provider, custodial_external_id, custodial_last4,
+          dispatch_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
-        input.ownerMemberId,
+        input.memberid,
         input.displayName,
         input.relationship,
         input.payoutMethod,
-        input.bankAccountLast4,
-        input.bankRoutingLast4,
-        input.bankToken,
+        input.walletChainId ?? null,
+        input.walletAddress ?? null,
+        input.custodialProvider ?? null,
+        input.custodialExternalId ?? null,
+        input.custodialLast4 ?? null,
+        input.dispatchStatus,
       ],
     );
     return rows[0];
   }
 
-  async listByOwner(ownerMemberId: string): Promise<RecipientRow[]> {
+  async listByOwner(memberid: string): Promise<RecipientRow[]> {
     return this.dataSource.query<RecipientRow[]>(
-      `SELECT * FROM recipients
-         WHERE owner_member_id = $1
-         ORDER BY created_at DESC`,
-      [ownerMemberId],
+      `SELECT * FROM recipients WHERE member_id = $1 ORDER BY created_at DESC`,
+      [memberid],
     );
   }
 
-  async findForOwner(
-    recipientId: string,
-    ownerMemberId: string,
-  ): Promise<RecipientRow | null> {
+  async findForOwner(recipientId: string, memberid: string): Promise<RecipientRow | null> {
     const rows = await this.dataSource.query<RecipientRow[]>(
-      `SELECT * FROM recipients
-         WHERE recipient_id = $1 AND owner_member_id = $2 LIMIT 1`,
-      [recipientId, ownerMemberId],
+      `SELECT * FROM recipients WHERE recipient_id = $1 AND member_id = $2 LIMIT 1`,
+      [recipientId, memberid],
     );
     return rows[0] ?? null;
   }
 
-  // Internal — used by the dispatch path via usdc_transactions.recipient_id
-  // (NOT owner-scoped; the tx row already proves ownership).
   async findById(recipientId: string): Promise<RecipientRow | null> {
     const rows = await this.dataSource.query<RecipientRow[]>(
       `SELECT * FROM recipients WHERE recipient_id = $1 LIMIT 1`,
@@ -72,100 +68,28 @@ export class RecipientsRepository {
     return rows[0] ?? null;
   }
 
-  async findByOwnerAndBankToken(
-    ownerMemberId: string,
-    bankToken: string,
-  ): Promise<RecipientRow | null> {
-    const rows = await this.dataSource.query<RecipientRow[]>(
-      `SELECT * FROM recipients
-         WHERE owner_member_id = $1 AND bank_token = $2 LIMIT 1`,
-      [ownerMemberId, bankToken],
-    );
-    return rows[0] ?? null;
-  }
-
   async updateDisplay(
     recipientId: string,
-    fields: {
-      displayName?: string;
-      relationship?: string | null;
-      payoutMethod?: PayoutMethod;
-    },
+    fields: { displayName?: string; relationship?: string | null },
   ): Promise<RecipientRow> {
     const rows = await this.dataSource.query<RecipientRow[]>(
       `UPDATE recipients SET
          display_name  = COALESCE($2, display_name),
-         relationship  = COALESCE($3, relationship),
-         payout_method = COALESCE($4, payout_method),
-         updated_at    = NOW()
+         relationship  = COALESCE($3, relationship)
        WHERE recipient_id = $1
        RETURNING *`,
-      [
-        recipientId,
-        fields.displayName ?? null,
-        fields.relationship ?? null,
-        fields.payoutMethod ?? null,
-      ],
+      [recipientId, fields.displayName ?? null, fields.relationship ?? null],
     );
     return rows[0];
   }
 
-  async applyBankChange(
+  async setDispatchStatus(
     recipientId: string,
-    bankAccountLast4: string,
-    bankRoutingLast4: string,
-    bankToken: string,
-  ): Promise<RecipientRow> {
-    const rows = await this.dataSource.query<RecipientRow[]>(
-      `UPDATE recipients SET
-         bank_account_last4 = $2,
-         bank_routing_last4 = $3,
-         bank_token         = $4,
-         bridge_status      = 'REGISTERING',
-         bridge_last_error  = NULL,
-         updated_at         = NOW()
-       WHERE recipient_id = $1
-       RETURNING *`,
-      [recipientId, bankAccountLast4, bankRoutingLast4, bankToken],
-    );
-    return rows[0];
-  }
-
-  async setRegistered(
-    recipientId: string,
-    refs: {
-      customerRef: string;
-      liquidationAddress: string;
-      externalAccountId: string;
-    },
-  ): Promise<void> {
-    await this.dataSource.query(
-      `UPDATE recipients SET
-         bridge_status              = 'READY',
-         bridge_customer_ref        = $2,
-         bridge_liquidation_address = $3,
-         bridge_external_account_id = $4,
-         bridge_last_error          = NULL,
-         updated_at                 = NOW()
-       WHERE recipient_id = $1`,
-      [
-        recipientId,
-        refs.customerRef,
-        refs.liquidationAddress,
-        refs.externalAccountId,
-      ],
-    );
-  }
-
-  async setStatus(
-    recipientId: string,
-    status: BridgeStatus,
+    status: string,
     error: string | null,
   ): Promise<void> {
     await this.dataSource.query(
-      `UPDATE recipients SET bridge_status = $2, bridge_last_error = $3,
-              updated_at = NOW()
-         WHERE recipient_id = $1`,
+      `UPDATE recipients SET dispatch_status = $2, dispatch_error = $3 WHERE recipient_id = $1`,
       [recipientId, status, error],
     );
   }
@@ -185,8 +109,6 @@ export class RecipientsRepository {
     );
   }
 
-  // Re-drive support: tx ids whose CURRENT state is USDC_LOCKED for a
-  // recipient (current state = latest transition, else the initial state).
   async lockedTxIdsForRecipient(recipientId: string): Promise<string[]> {
     const rows = await this.dataSource.query<{ tx_id: string }[]>(
       `SELECT u.tx_id

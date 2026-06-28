@@ -167,7 +167,7 @@ export class ShadowLedgerService {
           memberId,
           Direction.DEBIT,
           amountUnits.toString(),
-          TxState.BRIDGE_DISPATCHED,
+          TxState.DISPATCHED,
           idempotencyKey,
         ],
       );
