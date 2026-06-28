@@ -2,7 +2,7 @@
 
 A crypto-in / crypto-out USDC payment orchestrator. Members fund on-chain via Mesh (Path A); recipients receive USDC by direct on-chain transfer or via a third-party custodial pay-out provider. One ordered state machine, append-only shadow ledger, transactional outbox.
 
-Forked from the [Lira-Bridge](../meridian) middleware after the ILS on-ramp paths (Rapyd, BoG) and the Bridge.xyz fiat-out path (RTP / FedNow) were dropped. Same orchestration core — narrower scope, no fiat.
+Forked from an internal middleware project after the ILS on-ramp paths (Rapyd, BoG) and the Bridge.xyz fiat-out path (RTP / FedNow) were dropped. Same orchestration core — narrower scope, no fiat.
 
 ## Quick start
 
@@ -18,7 +18,7 @@ npm run client:dev             # Vite on :5173 (separate terminal)
 
 ## Architecture
 
-Modular monolith, NestJS + TypeScript strict + PostgreSQL 16. Same binding decision as Lira-Bridge §10h: **no microservices, no polyrepo, no database-per-service.** The correctness model (append-only tables, Postgres SERIALIZABLE, transactional outbox) only holds against one DB in one service.
+Modular monolith, NestJS + TypeScript strict + PostgreSQL 16. Core binding decision: **no microservices, no polyrepo, no database-per-service.** The correctness model (append-only tables, Postgres SERIALIZABLE, transactional outbox) only holds against one DB in one service.
 
 ### Inbound
 
@@ -64,7 +64,7 @@ npm run lint:boundaries       # depcruise + no-process-env check
 npm run build:all             # api + client
 ```
 
-## Binding rules (carried over from upstream)
+## Binding rules
 
 1. **No microservices.** One repo, one DB, one ordered migration history.
 2. **`@strait/contract` is the only source of UI↔API wire types.** Never redeclare a shape in `client/src` or `src/`.

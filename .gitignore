@@ -13,3 +13,10 @@ dist/
 .msys*
 *.sh
 .claude/
+
+# Internal / investor documents — never commit
+STRATEGY.md
+STRATEGY.pdf
+NEXT_STEPS.md
+BUSINESS_ANALYSIS_INVESTOR.md
+BUSINESS_ANALYSIS_INVESTOR.pdf
